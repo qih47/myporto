@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Efek animasi memudar dan naik sedikit */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Daftarkan sebagai utility class agar bisa dipakai seperti biasa di Tailwind v4 */
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
