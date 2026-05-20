@@ -61,9 +61,7 @@ export default function AboutMe() {
 
   // 🔄 FALLBACK RECONCILIATION ENGINE
   const currentName = dbProfile?.full_name || "Qisthi Iskandar Haqiki";
-  const currentAvatar =
-    dbProfile?.avatar_url ||
-    "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=600";
+  const currentAvatar = dbProfile?.avatar_url || "";
   const currentAvailable = dbProfile ? dbProfile.is_available : true;
 
   const currentSubHeadline = dbProfile
