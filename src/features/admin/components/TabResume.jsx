@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../supabaseClient";
+import { profileService } from "../../../services/profileService";
 
 export default function TabResume({ setGlobalMsg }) {
   const [loading, setLoading] = useState(false);
@@ -8,12 +8,7 @@ export default function TabResume({ setGlobalMsg }) {
 
   const fetchResumeAdminData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("resume_education, resume_experience")
-        .eq("id", 1)
-        .single();
-      if (error) throw error;
+      const data = await profileService.getProfile("resume_education, resume_experience");
       if (data) {
         setEducation(data.resume_education || []);
         setExperience(data.resume_experience || []);
@@ -32,17 +27,12 @@ export default function TabResume({ setGlobalMsg }) {
     setLoading(true);
     setGlobalMsg("");
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          resume_education: education,
-          resume_experience: experience,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", 1);
-      if (error) throw error;
+      await profileService.updateProfile({
+        resume_education: education,
+        resume_experience: experience,
+      });
       setGlobalMsg(
-        "🚀 Professional Journey Core map package uploaded successfully!",
+        "🚀 Professional Journey Core map package uploaded successfully!"
       );
     } catch (error) {
       setGlobalMsg(`Sync Error: ${error.message}`);
@@ -84,10 +74,10 @@ export default function TabResume({ setGlobalMsg }) {
   const removeBulletPoint = (expIdx, bulletIdx) => {
     const updated = [...experience];
     updated[expIdx].bullets_en = updated[expIdx].bullets_en.filter(
-      (_, i) => i !== bulletIdx,
+      (_, i) => i !== bulletIdx
     );
     updated[expIdx].bullets_id = updated[expIdx].bullets_id.filter(
-      (_, i) => i !== bulletIdx,
+      (_, i) => i !== bulletIdx
     );
     setExperience(updated);
   };
@@ -128,7 +118,7 @@ export default function TabResume({ setGlobalMsg }) {
                 },
               ])
             }
-            className="bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded hover:bg-emerald-900 font-bold font-mono tracking-wide"
+            className="bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded hover:bg-emerald-900 font-bold font-mono tracking-wide cursor-pointer"
           >
             + Add Education Node
           </button>
@@ -145,7 +135,7 @@ export default function TabResume({ setGlobalMsg }) {
                 onClick={() =>
                   setEducation(education.filter((_, i) => i !== idx))
                 }
-                className="absolute top-3 right-3 text-red-400 hover:text-red-500 font-bold"
+                className="absolute top-3 right-3 text-red-400 hover:text-red-500 font-bold cursor-pointer"
               >
                 ✕ Delete
               </button>
@@ -266,7 +256,7 @@ export default function TabResume({ setGlobalMsg }) {
                 },
               ])
             }
-            className="bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded hover:bg-emerald-900 font-bold font-mono tracking-wide"
+            className="bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded hover:bg-emerald-900 font-bold font-mono tracking-wide cursor-pointer"
           >
             + Add Job Experience Node
           </button>
@@ -283,7 +273,7 @@ export default function TabResume({ setGlobalMsg }) {
                 onClick={() =>
                   setExperience(experience.filter((_, i) => i !== expIdx))
                 }
-                className="absolute top-4 right-4 text-red-400 hover:text-red-500 font-bold uppercase tracking-wider text-[10px]"
+                className="absolute top-4 right-4 text-red-400 hover:text-red-500 font-bold uppercase tracking-wider text-[10px] cursor-pointer"
               >
                 ✕ Terminate Job
               </button>
@@ -360,7 +350,7 @@ export default function TabResume({ setGlobalMsg }) {
                   <button
                     type="button"
                     onClick={() => addBulletPoint(expIdx)}
-                    className="text-emerald-400 hover:text-emerald-300 font-bold text-[10px] uppercase font-mono"
+                    className="text-emerald-400 hover:text-emerald-300 font-bold text-[10px] uppercase font-mono cursor-pointer"
                   >
                     + Add Bullet Item
                   </button>
@@ -382,7 +372,7 @@ export default function TabResume({ setGlobalMsg }) {
                               expIdx,
                               bulletIdx,
                               "bullets_en",
-                              e.target.value,
+                              e.target.value
                             )
                           }
                           className="w-full bg-[#03060f] border border-slate-800/80 rounded p-1.5 text-slate-300 outline-none text-[11px]"
@@ -397,7 +387,7 @@ export default function TabResume({ setGlobalMsg }) {
                               expIdx,
                               bulletIdx,
                               "bullets_id",
-                              e.target.value,
+                              e.target.value
                             )
                           }
                           className="w-full bg-[#03060f] border border-slate-800/80 rounded p-1.5 text-slate-300 outline-none text-[11px]"
@@ -407,7 +397,7 @@ export default function TabResume({ setGlobalMsg }) {
                       <button
                         type="button"
                         onClick={() => removeBulletPoint(expIdx, bulletIdx)}
-                        className="text-red-400 hover:text-red-500 font-mono text-xs font-bold pt-1.5"
+                        className="text-red-400 hover:text-red-500 font-mono text-xs font-bold pt-1.5 cursor-pointer"
                         disabled={exp.bullets_en.length <= 1}
                       >
                         ✕

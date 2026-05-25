@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "../../supabaseClient";
+import { projectService } from "../../../services/projectService";
 
 export default function TabProjects({ setGlobalMsg }) {
   const [projects, setProjects] = useState([]);
@@ -24,12 +24,7 @@ export default function TabProjects({ setGlobalMsg }) {
 
   const fetchAdminProjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await projectService.getProjects();
       setProjects(data || []);
     } catch (error) {
       console.error("Fetch Admin Error:", error.message);
@@ -41,19 +36,15 @@ export default function TabProjects({ setGlobalMsg }) {
   useEffect(() => {
     fetchAdminProjects();
 
-    const adminChannel = supabase
-      .channel("admin-realtime-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "projects" },
-        () => {
-          fetchAdminProjects();
-        },
-      )
-      .subscribe();
+    const adminChannel = projectService.subscribeToChanges(
+      "admin-realtime-stream",
+      () => {
+        fetchAdminProjects();
+      }
+    );
 
     return () => {
-      supabase.removeChannel(adminChannel);
+      projectService.unsubscribe(adminChannel);
     };
   }, []);
 
@@ -101,7 +92,7 @@ export default function TabProjects({ setGlobalMsg }) {
               const regex = new RegExp(kakuKey, "gi");
               translatedText = translatedText.replace(
                 regex,
-                techGlossary[kakuKey],
+                techGlossary[kakuKey]
               );
             }
           });
@@ -151,19 +142,12 @@ export default function TabProjects({ setGlobalMsg }) {
 
     try {
       if (isEditing) {
-        const { error } = await supabase
-          .from("projects")
-          .update(projectPayload)
-          .eq("id", editId);
-        if (error) throw error;
+        await projectService.updateProject(editId, projectPayload);
         setGlobalMsg("Project deployment update sequence successful!");
         setIsEditing(false);
         setEditId(null);
       } else {
-        const { error } = await supabase
-          .from("projects")
-          .insert([projectPayload]);
-        if (error) throw error;
+        await projectService.addProject(projectPayload);
         setGlobalMsg("Project deployment sequence successful!");
       }
       resetForm();
@@ -177,13 +161,12 @@ export default function TabProjects({ setGlobalMsg }) {
   const handleDelete = async (id, title) => {
     if (
       !window.confirm(
-        `Apakah Anda yakin ingin mematikan Node Proyek: "${title}"?`,
+        `Apakah Anda yakin ingin mematikan Node Proyek: "${title}"?`
       )
     )
       return;
     try {
-      const { error } = await supabase.from("projects").delete().eq("id", id);
-      if (error) throw error;
+      await projectService.deleteProject(id);
       setGlobalMsg(`Node [${title}] successfully terminated.`);
       if (editId === id) handleCancelEdit();
     } catch (error) {

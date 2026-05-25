@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../supabaseClient";
+import { profileService } from "../../../services/profileService";
 
 export default function TabProfile({ setGlobalMsg }) {
   const [loading, setLoading] = useState(false);
@@ -34,12 +34,7 @@ export default function TabProfile({ setGlobalMsg }) {
 
   const fetchProfileAdminData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", 1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
+      const data = await profileService.getProfile("*");
       if (data) {
         setFormData({
           full_name: data.full_name || "",
@@ -76,29 +71,26 @@ export default function TabProfile({ setGlobalMsg }) {
     fetchProfileAdminData();
 
     // 🎧 REALTIME INTERCEPTOR: Dengerin perubahan data baris secara agresif
-    const stream = supabase
-      .channel("profiles-master-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles", filter: "id=eq.1" },
-        (payload) => {
-          console.log("Realtime Profile Sync Captured:", payload.new);
-          // Langsung paksa inject data baru dari postgres ke state tanpa nunggu fetch lambat
-          if (payload.new) {
-            setFormData((prev) => ({
-              ...prev,
-              ...payload.new,
-              tech_inventory_string: payload.new.tech_inventory
-                ? payload.new.tech_inventory.join(", ")
-                : prev.tech_inventory_string,
-            }));
-          }
-        },
-      )
-      .subscribe();
+    const stream = profileService.subscribeToChanges(
+      "profiles-master-stream",
+      (payload) => {
+        console.log("Realtime Profile Sync Captured:", payload.new);
+        // Langsung paksa inject data baru dari postgres ke state tanpa nunggu fetch lambat
+        if (payload.new) {
+          setFormData((prev) => ({
+            ...prev,
+            ...payload.new,
+            tech_inventory_string: payload.new.tech_inventory
+              ? payload.new.tech_inventory.join(", ")
+              : prev.tech_inventory_string,
+          }));
+        }
+      },
+      "id=eq.1"
+    );
 
     return () => {
-      supabase.removeChannel(stream);
+      profileService.unsubscribe(stream);
     };
   }, []);
 
@@ -115,22 +107,16 @@ export default function TabProfile({ setGlobalMsg }) {
       const fileName = `avatar_qisthi_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // 1. Upload file fisik ke bucket 'avatars' (Pastikan bucket lu diset PUBLIC di dashboard Supabase!)
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, { cacheControl: "3600", upsert: true });
-
-      if (uploadError) throw uploadError;
+      // 1. Upload file fisik ke bucket 'avatars'
+      await profileService.uploadAvatar(filePath, file);
 
       // 2. Ambil URL Publik murni dari storage asset
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      const publicUrl = profileService.getAvatarPublicUrl(filePath);
 
-      // 3. Langsung tembak state lokal biar preview berubah instan tanpa nunggu commit form!
+      // 3. Langsung tembak state lokal biar preview berubah instan
       setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
       setGlobalMsg(
-        "📸 New Avatar uploaded to storage pipeline! Click commit to save permanently.",
+        "📸 New Avatar uploaded to storage pipeline! Click commit to save permanently."
       );
     } catch (error) {
       setGlobalMsg(`Upload Storage Failure: ${error.message}`);
@@ -153,18 +139,13 @@ export default function TabProfile({ setGlobalMsg }) {
     const payload = {
       ...formData,
       tech_inventory: techArray,
-      updated_at: new Date().toISOString(),
     };
     delete payload.tech_inventory_string;
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update(payload)
-        .eq("id", 1);
-      if (error) throw error;
+      await profileService.updateProfile(payload);
       setGlobalMsg(
-        "🚀 Single Terminal Configuration Package Saved Successfully!",
+        "🚀 Single Terminal Configuration Package Saved Successfully!"
       );
     } catch (error) {
       setGlobalMsg(`Sync Error: ${error.message}`);
@@ -378,7 +359,7 @@ export default function TabProfile({ setGlobalMsg }) {
                   setFormData({
                     ...formData,
                     competency_cards: formData.competency_cards.filter(
-                      (_, i) => i !== idx,
+                      (_, i) => i !== idx
                     ),
                   })
                 }

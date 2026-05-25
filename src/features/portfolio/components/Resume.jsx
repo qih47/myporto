@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useLanguage } from "./LanguageContext";
-import { supabase } from "../supabaseClient";
+import { useLanguage } from "../../../core/context/LanguageContext";
+import { profileService } from "../../../services/profileService";
 
 export default function Resume() {
   const { lang } = useLanguage();
@@ -8,19 +8,14 @@ export default function Resume() {
 
   const fetchFullResumeEcosystemData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "resume_education, resume_experience, contact_phone, contact_email, location_en, location_id, summary_en, summary_id, full_name",
-        )
-        .eq("id", 1)
-        .single();
-      if (error) throw error;
+      const data = await profileService.getProfile(
+        "resume_education, resume_experience, contact_phone, contact_email, location_en, location_id, summary_en, summary_id, full_name"
+      );
       if (data) setDbProfile(data);
     } catch (err) {
       console.error(
         "Error fetching qualifications resume ecosystem:",
-        err.message,
+        err.message
       );
     }
   };
@@ -28,28 +23,24 @@ export default function Resume() {
   useEffect(() => {
     fetchFullResumeEcosystemData();
 
-    const channel = supabase
-      .channel("profiles-resume-live-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        () => {
-          fetchFullResumeEcosystemData();
-        },
-      )
-      .subscribe();
+    const channel = profileService.subscribeToChanges(
+      "profiles-resume-live-stream",
+      () => {
+        fetchFullResumeEcosystemData();
+      }
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      profileService.unsubscribe(channel);
     };
   }, []);
 
-  // 🔄 RECONCILIATION ENGINE: Ambil data master identitas langsung dari profile asset utama
+  // 🔄 RECONCILIATION ENGINE: Master variables
   const currentName = dbProfile?.full_name || "QISTHI ISKANDAR HAQIKI";
   const currentPhone = dbProfile?.contact_phone || "+62 xxxx xxxx xxxx";
   const currentMail = dbProfile?.contact_email || "qisthi.dev@example.com";
 
-  // 🎯 ROUTING DINAMIS: Otomatis ganti teks lokasid dan bio summary ngikutin lang switch!
+  // 🎯 ROUTING DINAMIS: Multilingual text transitions
   const currentLoc = dbProfile
     ? lang === "EN"
       ? dbProfile.location_en

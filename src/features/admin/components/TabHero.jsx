@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../supabaseClient";
+import { profileService } from "../../../services/profileService";
 
 export default function TabHero({ setGlobalMsg }) {
   const [loading, setLoading] = useState(false);
@@ -16,15 +16,10 @@ export default function TabHero({ setGlobalMsg }) {
 
   const fetchHeroAdminData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "hero_greeting_en, hero_greeting_id, hero_title_first_en, hero_title_first_id, hero_title_second_en, hero_title_second_id, hero_desc_en, hero_desc_id",
-        )
-        .eq("id", 1)
-        .single();
+      const data = await profileService.getProfile(
+        "hero_greeting_en, hero_greeting_id, hero_title_first_en, hero_title_first_id, hero_title_second_en, hero_title_second_id, hero_desc_en, hero_desc_id"
+      );
 
-      if (error) throw error;
       if (data) {
         setHeroForm({
           hero_greeting_en: data.hero_greeting_en || "",
@@ -51,16 +46,9 @@ export default function TabHero({ setGlobalMsg }) {
     setLoading(true);
     setGlobalMsg("");
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          ...heroForm,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", 1);
-      if (error) throw error;
+      await profileService.updateProfile(heroForm);
       setGlobalMsg(
-        "🚀 Main Hero section branding configuration deployed successfully!",
+        "🚀 Main Hero section branding configuration deployed successfully!"
       );
     } catch (error) {
       setGlobalMsg(`Hero Mutation Fail: ${error.message}`);

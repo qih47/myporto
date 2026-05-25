@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useLanguage } from "./LanguageContext";
-import { supabase } from "../supabaseClient";
+import { useLanguage } from "../../../core/context/LanguageContext";
+import { profileService } from "../../../services/profileService";
 
 export default function SkillsMatrixAndProficiency() {
   const { lang } = useLanguage();
@@ -9,12 +9,7 @@ export default function SkillsMatrixAndProficiency() {
   // 🔄 OPTIMIZED DATA ENGINE: Sekali tembak narik dua sirkuit array JSON terpadu
   const fetchFullSkillsDataEngine = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("matrix_cards, proficiency_bars")
-        .eq("id", 1)
-        .single();
-      if (error) throw error;
+      const data = await profileService.getProfile("matrix_cards, proficiency_bars");
       if (data) setDbProfile(data);
     } catch (err) {
       console.error("Error syncing skills matrix component:", err.message);
@@ -24,21 +19,17 @@ export default function SkillsMatrixAndProficiency() {
   useEffect(() => {
     fetchFullSkillsDataEngine();
 
-    // 🎧 REALTIME LIVE STREAM INTERCEPTOR: Pola tiruan TabProjects yang anti-gagal
-    const profilesChannel = supabase
-      .channel("profiles-matrix-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles", filter: "id=eq.1" },
-        () => {
-          console.log("Realtime Change Detected! Re-firing Data Engine...");
-          fetchFullSkillsDataEngine(); // 🎯 KUNCIAN: Langsung hit ulang DB biar data jsonb ditarik utuh & bersih!
-        },
-      )
-      .subscribe();
+    const profilesChannel = profileService.subscribeToChanges(
+      "profiles-matrix-live",
+      () => {
+        console.log("Realtime Change Detected! Re-firing Data Engine...");
+        fetchFullSkillsDataEngine();
+      },
+      "id=eq.1"
+    );
 
     return () => {
-      supabase.removeChannel(profilesChannel);
+      profileService.unsubscribe(profilesChannel);
     };
   }, []);
 
@@ -191,7 +182,7 @@ export default function SkillsMatrixAndProficiency() {
           ))}
         </div>
 
-        {/* Indikator Pembantu Kecil Dot Transparan di Bawah kalau Card Lebih dari 3 */}
+        {/* Indikator scroll di Bawah */}
         {finalCards.length > 3 && (
           <div className="flex justify-center gap-1.5 mt-2 font-mono text-[9px] text-slate-600 animate-pulse">
             <span>← SCROLL OR SWIPE MATRIX NODES TO VIEW MORE →</span>

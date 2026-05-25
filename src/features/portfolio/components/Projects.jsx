@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useLanguage } from "./LanguageContext";
-import { supabase } from "../supabaseClient";
+import { useLanguage } from "../../../core/context/LanguageContext";
+import { projectService } from "../../../services/projectService";
 
 export default function Projects() {
   const { lang } = useLanguage();
@@ -13,12 +13,7 @@ export default function Projects() {
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await projectService.getProjects();
       setProjects(data || []);
     } catch (error) {
       console.error("Error fetching projects:", error.message);
@@ -30,24 +25,16 @@ export default function Projects() {
   useEffect(() => {
     fetchProjects();
 
-    const projectsChannel = supabase
-      .channel("live-projects-stream")
-      .on(
-        "postgres_changes",
-        {
-          event: "*", // Dengerin INSERT, UPDATE, dan DELETE
-          schema: "public",
-          table: "projects",
-        },
-        (payload) => {
-          console.log("Realtime update captured!", payload);
-          fetchProjects(); // Tarik ulang dari db agar urutan sorting created_at tetap konsisten
-        },
-      )
-      .subscribe();
+    const projectsChannel = projectService.subscribeToChanges(
+      "live-projects-stream",
+      (payload) => {
+        console.log("Realtime update captured!", payload);
+        fetchProjects(); // Tarik ulang dari db agar urutan sorting tetap konsisten
+      }
+    );
 
     return () => {
-      supabase.removeChannel(projectsChannel);
+      projectService.unsubscribe(projectsChannel);
     };
   }, []);
 
@@ -69,7 +56,7 @@ export default function Projects() {
   // Ambil potongan 4 item proyek yang aktif berdasarkan halaman index saat ini
   const visibleProjects = projects.slice(
     currentIndex * itemsPerPage,
-    currentIndex * itemsPerPage + itemsPerPage,
+    currentIndex * itemsPerPage + itemsPerPage
   );
 
   return (
@@ -88,7 +75,7 @@ export default function Projects() {
           </h3>
         </div>
 
-        {/* Tombol Panah Navigasi Slider (Hanya muncul kalau proyek > 4) */}
+        {/* Tombol Panah Navigasi Slider */}
         {totalPages > 1 && (
           <div className="flex gap-2 font-mono text-xs">
             <button
@@ -117,16 +104,16 @@ export default function Projects() {
         )}
       </div>
 
-      {/* 📊 SUNTIKAN KOMPONEN: COUNTER STATS CARD TIMBUL */}
+      {/* COUNTER STATS CARD TIMBUL */}
       {!loading && (
         <div className="flex justify-center mb-16">
           <div className="relative bg-[#0b1224]/40 border border-slate-800 p-8 rounded-2xl w-full max-w-xs text-center shadow-lg hover:border-emerald-500/20 transition-all duration-300 group">
-            {/* Lingkaran Badge Ikon Timbul Mencuat ke Atas */}
+            {/* Lingkaran Badge Ikon Timbul */}
             <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-[#0b1224] border border-slate-800 rounded-full flex items-center justify-center shadow-md group-hover:border-emerald-400/40 transition-colors duration-300">
               <span className="text-emerald-400 text-lg select-none">📋</span>
             </div>
 
-            {/* Total Angka Dinamis Berbasis Row Supabase */}
+            {/* Total Angka Dinamis */}
             <div className="text-5xl font-black font-mono tracking-tight text-slate-100 mt-2 bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
               {projects.length}
             </div>
@@ -138,7 +125,6 @@ export default function Projects() {
                 : "Total Proyek Dikelola"}
             </div>
 
-            {/* Dekorasi Identitas Code Core */}
             <div className="text-[10px] font-mono text-slate-600 mt-1 uppercase tracking-widest">
               // database_record_count
             </div>
@@ -221,7 +207,7 @@ export default function Projects() {
             ))}
           </div>
 
-          {/* Indikator Halaman (Dots Navigator di bawah grid) */}
+          {/* Indikator Halaman (Dots Navigator) */}
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 pt-4">
               {[...Array(totalPages)].map((_, idx) => (

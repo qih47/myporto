@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import TabProjects from "./admin/TabProjects";
-import TabProfile from "./admin/TabProfile";
-import TabSkills from "./admin/TabSkills";
-import TabResume from "./admin/TabResume";
-import TabHero from "./admin/TabHero"; // 🚀 IMPORT: Ambil komponen tab hero baru
+import TabProjects from "../components/TabProjects";
+import TabProfile from "../components/TabProfile";
+import TabSkills from "../components/TabSkills";
+import TabResume from "../components/TabResume";
+import TabHero from "../components/TabHero";
 
 export default function AdminDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState("projects");
@@ -23,7 +23,7 @@ export default function AdminDashboard({ onLogout }) {
             </p>
           </div>
 
-          {/* 🎛️ TAB NAVIGATION CONTROLLER: Ditambah tombol "Manage Hero" */}
+          {/* TAB NAVIGATION CONTROLLER */}
           <div className="flex flex-wrap bg-[#0b1224] border border-slate-800 p-1 rounded-xl text-xs gap-1 sm:gap-0">
             <button
               onClick={() => {
@@ -77,10 +77,10 @@ export default function AdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {/* 💻 MODULAR RENDER ROUTING TERMINAL */}
+        {/* MODULAR RENDER ROUTING TERMINAL */}
         {activeTab === "projects" && <TabProjects setGlobalMsg={setMsg} />}
 
-        {/* Tab Baru: Hero Configuration */}
+        {/* Hero Configuration */}
         {activeTab === "hero" && <TabHero setGlobalMsg={setMsg} />}
 
         {activeTab === "profile" && <TabProfile setGlobalMsg={setMsg} />}

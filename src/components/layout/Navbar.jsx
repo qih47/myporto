@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLanguage } from "./LanguageContext";
+import { useLanguage } from "../../core/context/LanguageContext";
 
 const navItems = [
   { id: "home", label: { EN: "Home", ID: "Beranda" } },
@@ -93,7 +93,7 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* Batas Garis Vertikal Pemisah Menu biar Rapi */}
+          {/* Batas Garis Pemisah Menu */}
           <span className="h-4 w-[1px] bg-slate-800 hidden md:inline" />
 
           {/* Tombol Toggle Bahasa */}

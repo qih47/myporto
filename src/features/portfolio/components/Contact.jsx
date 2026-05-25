@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useLanguage } from "./LanguageContext";
-import { supabase } from "../supabaseClient";
+import { useLanguage } from "../../../core/context/LanguageContext";
+import { profileService } from "../../../services/profileService";
 import emailjs from "@emailjs/browser";
-import Swal from "sweetalert2"; // 🎯 INJEKSI: Import SweetAlert2 Engine
+import Swal from "sweetalert2"; // 🎯 SweetAlert2 Engine
 
 export default function Contact() {
   const { lang } = useLanguage();
@@ -10,15 +10,9 @@ export default function Contact() {
 
   const fetchContactEcosystemData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "contact_location, contact_phone, contact_email, contact_linkedin, contact_github",
-        )
-        .eq("id", 1)
-        .single();
-
-      if (error) throw error;
+      const data = await profileService.getProfile(
+        "contact_location, contact_phone, contact_email, contact_linkedin, contact_github"
+      );
       if (data) setDbProfile(data);
     } catch (err) {
       console.error("Error fetching operational contact node:", err.message);
@@ -28,23 +22,19 @@ export default function Contact() {
   useEffect(() => {
     fetchContactEcosystemData();
 
-    const channel = supabase
-      .channel("profiles-contact-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        () => {
-          fetchContactEcosystemData();
-        },
-      )
-      .subscribe();
+    const channel = profileService.subscribeToChanges(
+      "profiles-contact-stream",
+      () => {
+        fetchContactEcosystemData();
+      }
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      profileService.unsubscribe(channel);
     };
   }, []);
 
-  // 🔄 RECONCILIATION ENGINE: Ganti data statis pake data dinamis dari Supabase
+  // 🔄 RECONCILIATION ENGINE: Fallbacks
   const currentLoc =
     dbProfile?.contact_location || "Bandung, West Java, Indonesia";
   const currentPhone = dbProfile?.contact_phone || "+62 812-3456-7890";
@@ -53,10 +43,10 @@ export default function Contact() {
     dbProfile?.contact_linkedin || "linkedin.com/in/qisthiiskandar";
   const currentGithub = dbProfile?.contact_github || "github.com/qisthi_id";
 
-  // Bersihkan teks link untuk visual UI box
+  // Clean links for UI box display
   const displayLinkedin = currentLinkedin.replace(
     /^(https?:\/\/)?(www\.)?/,
-    "",
+    ""
   );
   const displayGithub = currentGithub.replace(/^(https?:\/\/)?(www\.)?/, "");
 
@@ -139,15 +129,14 @@ export default function Contact() {
     };
 
     try {
-      // Tembak sirkuit EmailJS API pake key asli lu
       await emailjs.send(
         "service_f28x3xs",
         "template_c54j1qg",
         templateParams,
-        "Wu7XcvQg6GLfTp01e",
+        "Wu7XcvQg6GLfTp01e"
       );
 
-      // 🎯 FIXED: Pake SweetAlert2 Premium Minimalist Style (Match Dark Theme)
+      // SweetAlert2 premium minimalist style (dark theme match)
       Swal.fire({
         title: t.swalSuccessTitle,
         text: t.swalSuccessText,
@@ -161,12 +150,10 @@ export default function Contact() {
         },
       });
 
-      // Reset form sirkuit setelah sukses dikirim
       setFormState({ name: "", email: "", subject: "", message: "" });
     } catch (error) {
       console.error("Email Transmission Failure:", error);
 
-      // 🎯 ERROR ALERT
       Swal.fire({
         title: t.swalFailTitle,
         text: error.text || "Check integration scopes or credentials.",
@@ -208,7 +195,7 @@ export default function Contact() {
             // {t.infoTitle}
           </p>
 
-          {/* Card 1: Lokasi */}
+          {/* Card 1: Location */}
           <div className="flex items-center gap-4 p-4 bg-slate-800/10 border border-slate-800/80 rounded-xl flex-1 min-h-[72px]">
             <div className="w-9 h-9 bg-[#070b18] border border-slate-800 rounded-lg flex items-center justify-center text-sm">
               📍
@@ -221,7 +208,7 @@ export default function Contact() {
             </div>
           </div>
 
-          {/* Card 2: Telepon */}
+          {/* Card 2: Phone */}
           <a
             href={`https://wa.me/${currentPhone.replace(/[^0-9]/g, "")}`}
             target="_blank"

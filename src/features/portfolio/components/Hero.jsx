@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useLanguage } from "./LanguageContext";
-import { supabase } from "../supabaseClient";
+import { useLanguage } from "../../../core/context/LanguageContext";
+import { profileService } from "../../../services/profileService";
 
 export default function Hero() {
   const { lang } = useLanguage();
@@ -8,14 +8,9 @@ export default function Hero() {
 
   const fetchHeroPublicData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "full_name, hero_greeting_en, hero_greeting_id, hero_title_first_en, hero_title_first_id, hero_title_second_en, hero_title_second_id, hero_desc_en, hero_desc_id",
-        )
-        .eq("id", 1)
-        .single();
-      if (error) throw error;
+      const data = await profileService.getProfile(
+        "full_name, hero_greeting_en, hero_greeting_id, hero_title_first_en, hero_title_first_id, hero_title_second_en, hero_title_second_id, hero_desc_en, hero_desc_id"
+      );
       if (data) setDbProfile(data);
     } catch (err) {
       console.error("Error syncing hero landing component:", err.message);
@@ -25,23 +20,19 @@ export default function Hero() {
   useEffect(() => {
     fetchHeroPublicData();
 
-    const channel = supabase
-      .channel("profiles-hero-live-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        () => {
-          fetchHeroPublicData();
-        },
-      )
-      .subscribe();
+    const channel = profileService.subscribeToChanges(
+      "profiles-hero-live-stream",
+      () => {
+        fetchHeroPublicData();
+      }
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      profileService.unsubscribe(channel);
     };
   }, []);
 
-  // 🎯 BALIK KE MURNI GREETING TEXT: Langsung todong teks utuh dari inputan config Hero admin lu
+  // 🎯 GREETING TEXT: Load text directly from configured Hero admin inputs
   const currentGreeting = dbProfile
     ? lang === "EN"
       ? dbProfile.hero_greeting_en || "Hi, my name is Qisthi Iskandar H."
@@ -83,7 +74,7 @@ export default function Hero() {
       className="pt-36 pb-24 px-6 max-w-7xl mx-auto flex flex-col justify-center min-h-[90vh] relative z-10 animate-fade-in-up"
     >
       <div className="space-y-6">
-        {/* Label Greeting Utuh Murni dari Config Hero Tanpa Tambahan Variabel Luar */}
+        {/* Greeting Label */}
         <p className="inline-block bg-emerald-500/10 text-emerald-300 font-mono text-sm px-4 py-1.5 rounded-full border border-emerald-500/20 font-bold">
           {currentGreeting}
         </p>

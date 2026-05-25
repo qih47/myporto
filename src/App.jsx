@@ -1,30 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { LanguageProvider } from "./components/LanguageContext";
-import { supabase } from "./supabaseClient";
-import Navbar from "./components/Navbar";
-import Hero from "./components/Hero";
-import AboutMe from "./components/AboutMe";
-import Skills from "./components/Skills";
-import Projects from "./components/Projects";
-import Contact from "./components/Contact";
-import Footer from "./components/Footer";
-import AdminLogin from "./components/AdminLogin";
-import AdminDashboard from "./components/AdminDashboard";
-import Resume from "./components/Resume";
+import { LanguageProvider } from "./core/context/LanguageContext";
+import { authService } from "./services/authService";
+
+// Layout components
+import Navbar from "./components/layout/Navbar";
+import Footer from "./components/layout/Footer";
+
+// Features components
+import { Hero, AboutMe, Skills, Projects, Resume, Contact } from "./features/portfolio";
+import { AdminLogin, AdminDashboard } from "./features/admin";
 
 function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [session, setSession] = useState(null);
 
   useEffect(() => {
-    // Cek token session login yang aktif dari Supabase Storage local
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Cek token session login yang aktif dari Supabase
+    authService.getSession().then((session) => {
       setSession(session);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const subscription = authService.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -37,13 +33,15 @@ function App() {
     handleHashChange(); // Cek saat inisialisasi awal load
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription && typeof subscription.unsubscribe === "function") {
+        subscription.unsubscribe();
+      }
       window.removeEventListener("hashchange", handleHashChange);
     };
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await authService.signOut();
     setSession(null);
     window.location.hash = ""; // Lempar balik ke home
   };
@@ -57,9 +55,7 @@ function App() {
         ) : (
           <AdminLogin
             onLoginSuccess={() =>
-              supabase.auth
-                .getSession()
-                .then(({ data: { session } }) => setSession(session))
+              authService.getSession().then((session) => setSession(session))
             }
           />
         )}

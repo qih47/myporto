@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useLanguage } from "./LanguageContext";
-import { supabase } from "../supabaseClient";
+import { useLanguage } from "../../../core/context/LanguageContext";
+import { profileService } from "../../../services/profileService";
 
 const staticLabels = {
   EN: {
@@ -26,13 +26,7 @@ export default function AboutMe() {
 
   const fetchProfileData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", 1)
-        .single();
-
-      if (error) throw error;
+      const data = await profileService.getProfile("*");
       if (data) setDbProfile(data);
     } catch (err) {
       console.error("Profile Data Fetch Fail Node:", err.message);
@@ -42,20 +36,16 @@ export default function AboutMe() {
   useEffect(() => {
     fetchProfileData();
 
-    const profileChannel = supabase
-      .channel("profiles-live-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        (payload) => {
-          console.log("Profile Realtime update captured!", payload);
-          fetchProfileData();
-        },
-      )
-      .subscribe();
+    const profileChannel = profileService.subscribeToChanges(
+      "profiles-live-stream",
+      (payload) => {
+        console.log("Profile Realtime update captured!", payload);
+        fetchProfileData();
+      }
+    );
 
     return () => {
-      supabase.removeChannel(profileChannel);
+      profileService.unsubscribe(profileChannel);
     };
   }, []);
 
@@ -111,7 +101,7 @@ export default function AboutMe() {
 
   const currentFrameworks = dbProfile?.frameworks_text || "CI4, React, FastAPI";
 
-  // 🎯 REALTIME ARCHITECTURE: Mapping array JSON cards dinamis dari kolom Supabase profiles
+  // 🎯 REALTIME ARCHITECTURE: Mapping dynamic competency JSON cards from profiles
   const rawCards = dbProfile?.competency_cards || [];
   const dynamicCards = rawCards
     .map((card) => ({
@@ -126,7 +116,7 @@ export default function AboutMe() {
       className="py-28 px-6 max-w-7xl mx-auto border-t border-slate-800/60 space-y-20 animate-fade-in-up"
     >
       <div className="grid md:grid-cols-12 gap-16 items-start">
-        {/* Kolom Kiri - Foto & Availability */}
+        {/* Left Column - Photo & Availability */}
         <div className="md:col-span-4 space-y-6 md:sticky md:top-28">
           <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border border-slate-700/40 group">
             <img
@@ -164,7 +154,7 @@ export default function AboutMe() {
           </div>
         </div>
 
-        {/* Kolom Kanan - Content Details */}
+        {/* Right Column - Content Details */}
         <div className="md:col-span-8 space-y-8">
           <div className="space-y-3">
             <p className="text-xs font-mono tracking-widest text-emerald-400 uppercase">
@@ -182,7 +172,7 @@ export default function AboutMe() {
             {currentSubSummary}
           </p>
 
-          {/* Kartu Kompetensi Berjejer Rapi 2 Atas 2 Bawah */}
+          {/* Competency cards */}
           {dynamicCards.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {dynamicCards.map((card, i) => (
@@ -221,7 +211,7 @@ export default function AboutMe() {
             </div>
           </div>
 
-          {/* Footer Metadata Node */}
+          {/* Footer Metadata */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-6 border-t border-slate-800">
             <div>
               <p className="text-xs text-slate-500 font-mono uppercase">

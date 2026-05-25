@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../supabaseClient";
+import { profileService } from "../../../services/profileService";
 
 export default function TabSkills({ setGlobalMsg }) {
   const [matrixLoading, setMatrixLoading] = useState(false);
@@ -11,12 +11,7 @@ export default function TabSkills({ setGlobalMsg }) {
   // 🔄 FETCH FILTER: Menarik data matrix dan proficiency langsung dari single master profile
   const fetchFullSkillsTabCore = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("matrix_cards, proficiency_bars")
-        .eq("id", 1)
-        .single();
-      if (error) throw error;
+      const data = await profileService.getProfile("matrix_cards, proficiency_bars");
       if (data) {
         setMatrixCards(data.matrix_cards || []);
         setProficiencyBars(data.proficiency_bars || []);
@@ -29,23 +24,19 @@ export default function TabSkills({ setGlobalMsg }) {
   useEffect(() => {
     fetchFullSkillsTabCore();
 
-    // 🎧 REALTIME LIVE STREAM INTERCEPTOR: Pola tiruan TabProjects yang anti-gagal
-    const stream = supabase
-      .channel("profiles-skills-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles", filter: "id=eq.1" },
-        () => {
-          console.log(
-            "Admin Realtime Change Detected! Refreshing Core States...",
-          );
-          fetchFullSkillsTabCore(); // 🎯 KUNCIAN: Hit ulang DB biar form admin sinkron instan tanpa numpang payload!
-        },
-      )
-      .subscribe();
+    const stream = profileService.subscribeToChanges(
+      "profiles-skills-stream",
+      () => {
+        console.log(
+          "Admin Realtime Change Detected! Refreshing Core States..."
+        );
+        fetchFullSkillsTabCore(); // KUNCIAN: Hit ulang DB biar form admin sinkron instan!
+      },
+      "id=eq.1"
+    );
 
     return () => {
-      supabase.removeChannel(stream);
+      profileService.unsubscribe(stream);
     };
   }, []);
 
@@ -55,16 +46,12 @@ export default function TabSkills({ setGlobalMsg }) {
     setMatrixLoading(true);
     setGlobalMsg("");
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          matrix_cards: matrixCards,
-          proficiency_bars: proficiencyBars, // 👈 FIXED: Angkut data bars saat update matrix biar gak ilang di row DB!
-        }) // 🎯 FIXED: Hapus updated_at manual agar tidak merusak sirkuit broadcast realtime Postgres
-        .eq("id", 1);
-      if (error) throw error;
+      await profileService.updateProfile({
+        matrix_cards: matrixCards,
+        proficiency_bars: proficiencyBars, // Angkut data bars saat update matrix biar gak ilang di row DB!
+      });
       setGlobalMsg(
-        "🚀 Expertise Matrix dynamic card stack updated successfully!",
+        "🚀 Expertise Matrix dynamic card stack updated successfully!"
       );
     } catch (error) {
       setGlobalMsg(`Matrix Save Fail: ${error.message}`);
@@ -79,22 +66,18 @@ export default function TabSkills({ setGlobalMsg }) {
     setMatrixCards(updated);
   };
 
-  // 🎛️ SUBMIT HANDLER 2: Dynamic Proficiency Rating Bars (Saved directly into profiles json)
+  // 🎛️ SUBMIT HANDLER 2: Dynamic Proficiency Rating Bars
   const handleBarsSubmit = async (e) => {
     e.preventDefault();
     setSkillsLoading(true);
     setGlobalMsg("");
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          matrix_cards: matrixCards, // 👈 FIXED: Angkut data cards saat update bars biar gak memicu fallback ghaib!
-          proficiency_bars: proficiencyBars,
-        }) // 🎯 FIXED: Hapus updated_at manual agar tidak merusak sirkuit broadcast realtime Postgres
-        .eq("id", 1);
-      if (error) throw error;
+      await profileService.updateProfile({
+        matrix_cards: matrixCards, // Angkut data cards saat update bars biar gak memicu fallback ghaib!
+        proficiency_bars: proficiencyBars,
+      });
       setGlobalMsg(
-        "📊 Technical proficiency rating map synchronized successfully!",
+        "📊 Technical proficiency rating map synchronized successfully!"
       );
     } catch (error) {
       setGlobalMsg(`Proficiency Bars Save Fail: ${error.message}`);
@@ -257,7 +240,7 @@ export default function TabSkills({ setGlobalMsg }) {
         </button>
       </form>
 
-      {/* 2. NEW DYNAMIC PROFICIENCY RATING BARS INTERFACE */}
+      {/* 2. DYNAMIC PROFICIENCY RATING BARS */}
       <form
         onSubmit={handleBarsSubmit}
         className="bg-[#0b1224] border border-slate-800 p-8 rounded-2xl space-y-6 shadow-xl"
@@ -336,7 +319,7 @@ export default function TabSkills({ setGlobalMsg }) {
                   type="button"
                   onClick={() =>
                     setProficiencyBars(
-                      proficiencyBars.filter((_, i) => i !== idx),
+                      proficiencyBars.filter((_, i) => i !== idx)
                     )
                   }
                   className="bg-slate-800/60 border border-slate-700/80 p-2 rounded-lg text-red-400 hover:text-red-500 transition-colors cursor-pointer font-bold shrink-0 font-mono"

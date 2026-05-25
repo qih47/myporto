@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { authService } from '../../../services/authService';
 
 export default function AdminLogin({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -13,12 +13,7 @@ export default function AdminLogin({ onLoginSuccess }) {
     setErrorMsg('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
+      const data = await authService.signIn(email, password);
       if (data?.session) onLoginSuccess();
     } catch (error) {
       setErrorMsg(error.message);
